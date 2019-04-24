@@ -55,10 +55,13 @@ ${fs.readFileSync(require.resolve('tti-polyfill'))}`);
     const { timing, paint, mark } = await page.evaluate(async () => ({
         timing: JSON.stringify(window.performance.timing),
         paint: JSON.stringify(performance.getEntriesByType('paint')),
-        mark: JSON.stringify(
-            performance.getEntriesByType('mark')
-                .concat({ name: 'time-to-interactive', startTime: await window.ttiPolyfill.getFirstConsistentlyInteractive() })
-        )
+        mark: () => {
+            const tti = JSON.stringify(performance.getEntriesByType('mark'))
+
+            return process.argv.includes('--tti') ?
+                tti.concat({ name: 'time-to-interactive', startTime: await window.ttiPolyfill.getFirstConsistentlyInteractive() }) :
+                tti
+        }
     }));
 
     await page.close();
