@@ -19,6 +19,7 @@ const NETWORK_PRESETS = {
 };
 
 const NETWORK_PRESET = process.argv.includes('--regular3G') ? NETWORK_PRESETS.Regular3G : NETWORK_PRESETS.Good3G;
+const TTI_FLAG = process.argv.includes('--tti');
 
 module.exports = async function (url) {
     const browser = await puppeteer.launch({
@@ -51,17 +52,23 @@ g.o=new PerformanceObserver(function(l){g.e=g.e.concat(l.getEntries())});
 g.o.observe({entryTypes:['longtask']})}}();
 ${fs.readFileSync(require.resolve('tti-polyfill'))}`);
     await page.goto(url);
-
-    const { timing, paint, mark } = await page.evaluate(async () => ({
+    const {
+        timing,
+        paint,
+        mark
+    } = TTI_FLAG ?
+    await page.evaluate(async () => ({
         timing: JSON.stringify(window.performance.timing),
         paint: JSON.stringify(performance.getEntriesByType('paint')),
-        mark: () => {
-            const tti = JSON.stringify(performance.getEntriesByType('mark'))
-
-            return process.argv.includes('--tti') ?
-                tti.concat({ name: 'time-to-interactive', startTime: await window.ttiPolyfill.getFirstConsistentlyInteractive() }) :
-                tti
-        }
+        mark: JSON.stringify(
+            performance.getEntriesByType('mark')
+                .concat({ name: 'time-to-interactive', startTime: await window.ttiPolyfill.getFirstConsistentlyInteractive() })
+        )
+    })) :
+    await page.evaluate(async () => ({
+        timing: JSON.stringify(window.performance.timing),
+        paint: JSON.stringify(performance.getEntriesByType('paint')),
+        mark: JSON.stringify(performance.getEntriesByType('mark'))
     }));
 
     await page.close();
